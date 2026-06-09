@@ -38,9 +38,12 @@ async function launchBrowser() {
  */
 function loadCookies() {
   if (fs.existsSync(COOKIES_FILE)) {
+    console.log('[Cookies] 从文件加载 cookies:', COOKIES_FILE);
     const cookies = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
+    console.log('[Cookies] 文件中的 cookies 数量:', cookies.length);
     return formatCookies(cookies);
   }
+  console.log('[Cookies] cookies 文件不存在');
   return null;
 }
 
@@ -49,6 +52,11 @@ function loadCookies() {
  */
 function formatCookies(cookies) {
   if (!cookies || !Array.isArray(cookies)) return cookies;
+
+  console.log('[Cookies] 格式化 cookies，数量:', cookies.length);
+  if (cookies.length > 0) {
+    console.log('[Cookies] 第一个 cookie 原始 sameSite:', cookies[0].sameSite);
+  }
 
   return cookies.map(cookie => {
     // 处理 sameSite: "unspecified" -> "None"
