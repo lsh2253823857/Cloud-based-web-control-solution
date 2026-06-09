@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 function getRedisConfig() {
   // 优先使用 REDIS_URL（Railway 等平台提供）
   if (process.env.REDIS_URL) {
+    console.log('[Redis] 使用 REDIS_URL 连接:', process.env.REDIS_URL.replace(/\/\/.*@/, '//***@'));
     const url = new URL(process.env.REDIS_URL);
     return {
       host: url.hostname,
@@ -20,14 +21,17 @@ function getRedisConfig() {
   }
 
   // 使用单独的环境变量
-  return {
+  const config = {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
     password: process.env.REDIS_PASSWORD || undefined
   };
+  console.log('[Redis] 使用环境变量连接:', config.host + ':' + config.port);
+  return config;
 }
 
 const REDIS_CONFIG = getRedisConfig();
+console.log('[Redis] 最终连接配置:', { host: REDIS_CONFIG.host, port: REDIS_CONFIG.port });
 
 // 任务队列
 const rpaQueue = new Queue('rpa-tasks', {
