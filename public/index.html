@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拼多多 RPA 云端服务</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 24px; margin-bottom: 20px; }
+
+    .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 18px; margin-bottom: 15px; color: #1a1a1a; }
+    .card p { font-size: 14px; color: #666; margin-bottom: 10px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 5px; }
+    .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .form-group input[type="file"] { padding: 6px; }
+
+    .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .btn-primary { background: #1677ff; color: #fff; }
+    .btn-primary:hover { background: #4096ff; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-success { background: #52c41a; color: #fff; }
+    .btn-success:hover { background: #73d13d; }
+    .btn-block { width: 100%; }
+
+    .log-container { background: #1e1e1e; color: #d4d4d4; border-radius: 4px; padding: 15px; min-height: 400px; max-height: 600px; overflow-y: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.6; }
+    .log-container .error { color: #f44747; }
+    .log-container .success { color: #6a9955; }
+    .log-container .batch { color: #569cd6; }
+
+    .progress-bar { width: 100%; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+    .progress-bar .fill { height: 100%; background: #1677ff; transition: width 0.3s; }
+
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+    .status-badge.ok { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+    .status-badge.warn { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+
+    .cookies-section { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .cookies-section textarea { flex: 1; min-width: 200px; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; resize: vertical; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 拼多多 RPA 云端服务</h1>
+
+    <div class="grid">
+      <!-- 左侧：操作面板 -->
+      <div>
+        <!-- Cookies 管理 -->
+        <div class="card">
+          <h2>🔐 登录状态管理</h2>
+          <p>首次使用需要导入拼多多登录 cookies，后续会自动维护</p>
+          <div class="cookies-section">
+            <textarea id="cookiesInput" placeholder='粘贴 cookies JSON 数组，格式: [{"name":"xxx","value":"xxx","domain":".pinduoduo.com",...}]'></textarea>
+            <div>
+              <button class="btn btn-primary" onclick="importCookies()">导入 Cookies</button>
+              <button class="btn btn-success" onclick="checkCookiesStatus()" style="margin-top:5px">检查状态</button>
+            </div>
+          </div>
+          <div id="cookiesStatus" style="margin-top:10px"></div>
+        </div>
+
+        <!-- 文件上传 -->
+        <div class="card">
+          <h2>📁 上传数据文件</h2>
+          <div class="form-group">
+            <label>商品数据 (.xlsx)</label>
+            <input type="file" id="goodsFile" accept=".xlsx,.xls">
+          </div>
+          <div class="form-group">
+            <label>直通车数据 (.xls)</label>
+            <input type="file" id="reportFile" accept=".xlsx,.xls">
+          </div>
+          <button class="btn btn-primary btn-block" onclick="uploadFiles()">上传文件</button>
+          <div id="uploadStatus" style="margin-top:10px"></div>
+        </div>
+
+        <!-- 任务提交 -->
+        <div class="card">
+          <h2>⚡ 执行任务</h2>
+          <div class="form-group">
+            <label>选择任务类型</label>
+            <select id="taskType">
+              <option value="batch_pause_promotion">批量暂停推广</option>
+              <option value="batch_delist_goods">批量下架商品</option>
+            </select>
+          </div>
+          <button class="btn btn-success btn-block" id="executeBtn" onclick="executeTask()" disabled>
+            请先上传文件
+          </button>
+        </div>
+      </div>
+
+      <!-- 右侧：日志面板 -->
+      <div>
+        <div class="card">
+          <h2>📋 执行日志 <span id="progressText" style="font-size:14px;color:#666"></span></h2>
+          <div class="progress-bar">
+            <div class="fill" id="progressBar" style="width:0%"></div>
+          </div>
+          <div class="log-container" id="logContainer">
+            <p style="color:#666">等待执行...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let uploadedGoodsFile = null;
+    let uploadedReportFile = null;
+    let currentEventSource = null;
+
+    // 上传文件
+    async function uploadFiles() {
+      const goodsInput = document.getElementById('goodsFile');
+      const reportInput = document.getElementById('reportFile');
+      const statusEl = document.getElementById('uploadStatus');
+
+      if (!goodsInput.files[0] || !reportInput.files[0]) {
+        statusEl.innerHTML = '<span style="color:#f44747">请选择两个文件</span>';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('goods', goodsInput.files[0]);
+      formData.append('report', reportInput.files[0]);
+
+      statusEl.innerHTML = '上传中...';
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+          uploadedGoodsFile = data.goodsFile;
+          uploadedReportFile = data.reportFile;
+          statusEl.innerHTML = `<span style="color:#52c41a">✓ 上传成功</span>`;
+          updateExecuteButton();
+        } else {
+          statusEl.innerHTML = `<span style="color:#f44747">✗ ${data.error}</span>`;
+        }
+      } catch (err) {
+        statusEl.innerHTML = `<span style="color:#f44747">✗ 上传失败: ${err.message}</span>`;
+      }
+    }
+
+    // 更新执行按钮状态
+    function updateExecuteButton() {
+      const btn = document.getElementById('executeBtn');
+      if (uploadedGoodsFile && uploadedReportFile) {
+        btn.disabled = false;
+        btn.textContent = '开始执行';
+      } else {
+        btn.disabled = true;
+        btn.textContent = '请先上传文件';
+      }
+    }
+
+    // 执行任务
+    async function executeTask() {
+      const taskType = document.getElementById('taskType').value;
+      const btn = document.getElementById('executeBtn');
+
+      if (!uploadedGoodsFile || !uploadedReportFile) {
+        alert('请先上传文件');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '执行中...';
+      clearLogs();
+      addLog('提交任务中...');
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scriptType: taskType,
+            goodsFile: uploadedGoodsFile,
+            reportFile: uploadedReportFile
+          })
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+          addLog(`任务已提交，ID: ${data.taskId}`);
+          startSSE(data.taskId);
+        } else {
+          addLog(`[错误] ${data.error}`, 'error');
+          btn.disabled = false;
+          btn.textContent = '开始执行';
+        }
+      } catch (err) {
+        addLog(`[错误] 提交失败: ${err.message}`, 'error');
+        btn.disabled = false;
+        btn.textContent = '开始执行';
+      }
+    }
+
+    // SSE 实时日志
+    function startSSE(taskId) {
+      if (currentEventSource) {
+        currentEventSource.close();
+      }
+
+      const es = new EventSource(`${API_BASE}/api/tasks/${taskId}/logs`);
+      currentEventSource = es;
+
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'log') {
+            const cls = data.message.includes('[错误]') ? 'error'
+              : data.message.includes('完成') ? 'success'
+              : data.message.includes('批次') ? 'batch' : '';
+            addLog(data.message, cls);
+          } else if (data.type === 'progress') {
+            updateProgress(data.progress);
+          } else if (data.type === 'done') {
+            addLog('✅ ' + data.message, 'success');
+            finishExecution();
+          } else if (data.type === 'error') {
+            addLog('[错误] ' + data.message, 'error');
+            finishExecution();
+          }
+        } catch {}
+      };
+
+      es.onerror = () => {
+        es.close();
+        currentEventSource = null;
+        finishExecution();
+      };
+    }
+
+    // 完成执行
+    function finishExecution() {
+      const btn = document.getElementById('executeBtn');
+      btn.disabled = false;
+      btn.textContent = '开始执行';
+      if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+      }
+    }
+
+    // 日志操作
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+    }
+
+    function addLog(message, cls = '') {
+      const container = document.getElementById('logContainer');
+      const div = document.createElement('div');
+      div.className = cls;
+      div.textContent = message;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Cookies 操作
+    async function importCookies() {
+      const input = document.getElementById('cookiesInput');
+      const statusEl = document.getElementById('cookiesStatus');
+
+      try {
+        const cookies = JSON.parse(input.value);
+        if (!Array.isArray(cookies)) throw new Error('必须是数组');
+
+        const resp = await fetch(`${API_BASE}/api/cookies/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cookies })
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+          statusEl.innerHTML = '<span class="status-badge ok">✓ 导入成功</span>';
+        } else {
+          statusEl.innerHTML = `<span class="status-badge warn">✗ ${data.error}</span>`;
+        }
+      } catch (err) {
+        statusEl.innerHTML = `<span class="status-badge warn">✗ JSON 格式错误: ${err.message}</span>`;
+      }
+    }
+
+    async function checkCookiesStatus() {
+      const statusEl = document.getElementById('cookiesStatus');
+      try {
+        const resp = await fetch(`${API_BASE}/api/cookies/status`);
+        const data = await resp.json();
+
+        if (data.exists) {
+          statusEl.innerHTML = `<span class="status-badge ok">✓ 已有 cookies (更新于 ${new Date(data.lastModified).toLocaleString()})</span>`;
+        } else {
+          statusEl.innerHTML = '<span class="status-badge warn">⚠ 未导入 cookies</span>';
+        }
+      } catch (err) {
+        statusEl.innerHTML = `<span class="status-badge warn">查询失败</span>`;
+      }
+    }
+
+    // 页面加载时检查 cookies 状态
+    checkCookiesStatus();
+  </script>
+</body>
+</html>

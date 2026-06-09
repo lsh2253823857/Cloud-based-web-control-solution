@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node src/server.js"
+healthcheckPath = "/api/cookies/status"
+healthcheckTimeout = 30
