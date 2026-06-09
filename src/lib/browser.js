@@ -58,7 +58,29 @@ function saveCookies(cookies) {
  */
 async function importCookies(context, cookies) {
   if (cookies && cookies.length > 0) {
-    await context.addCookies(cookies);
+    // 格式化 cookies 以符合 Playwright 要求
+    const formattedCookies = cookies.map(cookie => {
+      // 处理 sameSite: "unspecified" -> "None"
+      let sameSite = cookie.sameSite;
+      if (!sameSite || sameSite === 'unspecified' || sameSite === 'no_restriction') {
+        sameSite = 'None';
+      }
+      // 确保首字母大写
+      sameSite = sameSite.charAt(0).toUpperCase() + sameSite.slice(1).toLowerCase();
+
+      return {
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path || '/',
+        expires: cookie.expirationDate || cookie.expires || -1,
+        httpOnly: cookie.httpOnly || false,
+        secure: cookie.secure || false,
+        sameSite: sameSite
+      };
+    });
+
+    await context.addCookies(formattedCookies);
   }
 }
 
