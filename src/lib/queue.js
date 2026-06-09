@@ -5,12 +5,29 @@
 const { Queue, Worker } = require('bullmq');
 const { v4: uuidv4 } = require('uuid');
 
-// Redis 连接配置
-const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD || undefined
-};
+// Redis 连接配置 - 支持 REDIS_URL 或单独的环境变量
+function getRedisConfig() {
+  // 优先使用 REDIS_URL（Railway 等平台提供）
+  if (process.env.REDIS_URL) {
+    const url = new URL(process.env.REDIS_URL);
+    return {
+      host: url.hostname,
+      port: parseInt(url.port) || 6379,
+      password: url.password || undefined,
+      username: url.username || undefined,
+      tls: url.protocol === 'rediss:' ? {} : undefined
+    };
+  }
+
+  // 使用单独的环境变量
+  return {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD || undefined
+  };
+}
+
+const REDIS_CONFIG = getRedisConfig();
 
 // 任务队列
 const rpaQueue = new Queue('rpa-tasks', {
